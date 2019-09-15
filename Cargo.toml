@@ -1,6 +1,6 @@
 [package]
-name = "kdtree-wasm"
-version = "0.1.0"
+name = "kdtree-fast"
+version = "1.0.0"
 authors = ["Kenan Sulayman <kenan@styla.com>"]
 edition = "2018"
 
