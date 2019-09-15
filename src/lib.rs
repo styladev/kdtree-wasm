@@ -1,9 +1,18 @@
 use kdtree;
 use wasm_bindgen::prelude::*;
 
+use serde;
+use serde_derive::Serialize;
+
 type PointUnit = f64;
 type Point = Vec<PointUnit>;
 type Data = f64;
+
+#[derive(Serialize)]
+struct Nearest {
+    dist: f64,
+    data: f64,
+}
 
 #[wasm_bindgen]
 pub struct KdTree {
@@ -12,11 +21,31 @@ pub struct KdTree {
 }
 
 #[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn error(s: &str);
+}
+
+fn assert_error(cond: bool, msg: &str) {
+    if cond {
+        return;
+    }
+
+    error(msg);
+    panic!();
+}
+
+#[wasm_bindgen]
 impl KdTree {
     #[wasm_bindgen(constructor)]
     pub fn new(
         dimensions: usize,
     ) -> KdTree {
+        assert_error(
+            dimensions > 0,
+            "Dimensions must be set and >= 1",
+        );
+
         KdTree {
             kdtree: kdtree::KdTree::new(dimensions),
             dimensions,
@@ -32,54 +61,57 @@ impl KdTree {
         &self,
         point: &Point,
     ) {
-        assert_eq!(point.len(), self.dimensions, "Point has incorrect length");
+        assert_error(
+            point.len() == self.dimensions,
+            "Point dimensions do not match KdTree dimensions",
+        );
     }
 
     pub fn within(
         &self,
         point: Point,
         radius: PointUnit,
-    ) -> Result<Vec<(PointUnit, &Data)>, kdtree::ErrorKind> {
+    ) -> JsValue {
         self.check_point(&point);
 
-        Ok(
-            self.kdtree.within(
-                &point,
-                radius,
-                &kdtree::distance::squared_euclidean,
-            )?
+        let val: Vec<(PointUnit, &Data)> = self.kdtree.within(
+            &point.clone(),
+            radius,
+            &kdtree::distance::squared_euclidean,
         )
+        .unwrap();
+
+        JsValue::from_serde(&val).unwrap()
     }
 
     pub fn nearest(
         &mut self,
         point: Point,
         num: usize,
-    ) -> Result<Vec<(PointUnit, &Data)>, kdtree::ErrorKind> {
+    ) -> JsValue {
         self.check_point(&point);
 
-        Ok(
-            self.kdtree.nearest(
-                &point,
-                num,
-                &kdtree::distance::squared_euclidean,
-            )?
+        let val: Vec<(PointUnit, &Data)> = self.kdtree.nearest(
+            &point.clone(),
+            num,
+            &kdtree::distance::squared_euclidean,
         )
+        .unwrap();
+
+        JsValue::from_serde(&val).unwrap()
     }
 
     pub fn add(
         &mut self,
         point: Point,
         data: Data,
-    ) -> Result<(), kdtree::ErrorKind> {
+    ) -> () {
         self.check_point(&point);
 
-        Ok(
-            self.kdtree.add(
-                point,
-                data,
-            )?
-        )
+        self.kdtree.add(
+            point.clone(),
+            data,
+        ).unwrap()
     }
 
     pub fn drop(self) {
